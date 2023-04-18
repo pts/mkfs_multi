@@ -56,30 +56,32 @@
 #   above still applies.
 #
 
+BLKDEV="${1:-bothsh.img}"
 set -ex
-dd if=/dev/zero bs=1M count=256 of=both.img
+
+dd if=/dev/zero bs=1M count=256 of="$BLKDEV"
 # `*4' to convert from 4-KiB blocks to 1-KiB blocks.
 (seq $((36*4)) $((106*4)) && seq $((32768*4)) $((32835*4))) >bb256m_fat16.lst
-mkfs.fat -v -s 8 -S 512 -f 1 -F 16 -r 128 -R 24 -l bb256m_fat16.lst both.img
+mkfs.fat -v -s 8 -S 512 -f 1 -F 16 -r 128 -R 24 -l bb256m_fat16.lst "$BLKDEV"
 # Copy (save) the FAT16 superblock, mke2fs will overwrite it.
-dd if=both.img of=both.img.sb.tmp bs=512 count=1
+dd if="$BLKDEV" of="$BLKDEV".sb.tmp bs=512 count=1
 # Copy (save) the FAT16 FAT, mke2fs will overwrite it.
-dd if=both.img of=both.img.fat.tmp bs=4K count=32 skip=3
+dd if="$BLKDEV" of="$BLKDEV".fat.tmp bs=4K count=32 skip=3
 seq 3 35 >bb256m_ext2.lst  # Counts 4 KiB blocks.
-mke2fs -t ext2 -b 4096 -m 0 -O ^resize_inode -O ^dir_index -O ^sparse_super -I 128 -i 65536 -l bb256m_ext2.lst -F both.img
-dumpe2fs both.img
+mke2fs -t ext2 -b 4096 -m 0 -O ^resize_inode -O ^dir_index -O ^sparse_super -I 128 -i 65536 -l bb256m_ext2.lst -F "$BLKDEV"
+dumpe2fs "$BLKDEV"
 # Restore the FAT16 superblock.
-dd if=both.img.sb.tmp of=both.img bs=512 count=1 conv=notrunc
+dd if="$BLKDEV".sb.tmp of="$BLKDEV" bs=512 count=1 conv=notrunc
 # Restore the FAT16 FAT.
-dd if=both.img.fat.tmp of=both.img bs=4K count=32 conv=notrunc seek=3
-rm -f both.img.sb.tmp both.img.fat.tmp
+dd if="$BLKDEV".fat.tmp of="$BLKDEV" bs=4K count=32 conv=notrunc seek=3
+rm -f "$BLKDEV".sb.tmp "$BLKDEV".fat.tmp
 rm -f bb256m_fat16.lst bb256m_ext2.lst
 
 # Mount it on Linux:
 : mkdir p
-: sudo mount -t ext2 -o loop,ro both.img p
+: sudo mount -t ext2 -o loop,ro "$BLKDEV" p
 : sudo umount p
-: sudo mount -t vfat -o loop,ro both.img p
+: sudo mount -t vfat -o loop,ro "$BLKDEV" p
 : sudo umount p
 
 : "$0" OK.
