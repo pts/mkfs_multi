@@ -75,4 +75,11 @@ dd if=both.img.fat.tmp of=both.img bs=4K count=32 conv=notrunc seek=3
 rm -f both.img.sb.tmp both.img.fat.tmp
 rm -f bb256m_fat16.lst bb256m_ext2.lst
 
+# Mount it on Linux:
+: mkdir p
+: sudo mount -t ext2 -o loop,ro both.img p
+: sudo umount p
+: sudo mount -t vfat -o loop,ro both.img p
+: sudo umount p
+
 : "$0" OK.

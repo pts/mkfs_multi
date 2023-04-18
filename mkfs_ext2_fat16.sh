@@ -31,5 +31,11 @@ dd if="$BLKDEV".bs.tmp of="$BLKDEV" bs=1K count=1 conv=notrunc
 rm -f "$BLKDEV".bs.tmp
 dumpe2fs "$BLKDEV"
 
-: "$0" OK.
+# Mount it on Linux:
+: mkdir p
+: sudo mount -t ext2 -o loop "$BLKDEV" p
+: sudo umount p
+: sudo mount -t vfat -o loop "$BLKDEV" p
+: sudo umount p
 
+: "$0" OK.
