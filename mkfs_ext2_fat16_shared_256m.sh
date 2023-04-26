@@ -47,19 +47,6 @@
 #   * block 32772..32835: ext2 inode table (2048 * 128 bytes: room for 2048 inodes, 128 bytes per inode, all free), marked as bad block in FAT16
 #   * block 32836..65535: free data blocks in both ext2 and FAT16 (32700 blocks)
 #
-# Maximum filesystem size with this technique:
-#
-# * Use FAT32 instead of FAT16.
-# * Maximum FAT32 FAT is limited by the ext2 block group size: each group
-#   can contain up to 32695 data blocks (with the current inode ratio), if
-#   we mark them all bad in ext2, then we have 32695 4 KiB-blocks for the
-#   FAT32 FAT + root directory, thus 32694 4-KiB blocks for the FAT32 FAT,
-#   thus (32694 * 4096 / 4) - 2 == 33478654 FAT32 data clusters, thus
-#   33478654 * 32 KiB == 1071316928 bytes =~ 0.99774 TiB of free data.
-# * 0.99774 TiB is possible for both ext2 and FAT32.
-# * Using exFAT instead of FAT32 doesn't help, the ext2 block group limit
-#   above still applies.
-#
 # ext2 inodes (128 bytes each):
 #
 # * inode <0>: 0 is an invalid inode number, it's not even stored in the filesystem
@@ -76,7 +63,7 @@
 # * inode <12>..<2048> at offset 152960: free inodes
 # * inode <2049>..<4096> at offset 134234112: free inodes
 #
-# ext2 directory entries (dentry):
+# ext2 directory entries:
 #
 # * for inode <2> (/):
 #   * data block 101 at offset 413696:
@@ -93,6 +80,19 @@
 #     * empty: 4096 bytes: inode=0 size=4096 name_size=0 type=0=DT_UNKNOWN
 #   * data block 105 at offset 430080: empty
 #     * empty: 4096 bytes: inode=0 size=4096 name_size=0 type=0=DT_UNKNOWN
+#
+# Maximum filesystem size with this technique:
+#
+# * Use FAT32 instead of FAT16.
+# * Maximum FAT32 FAT is limited by the ext2 block group size: each group
+#   can contain up to 32695 data blocks (with the current inode ratio), if
+#   we mark them all bad in ext2, then we have 32695 4 KiB-blocks for the
+#   FAT32 FAT + root directory, thus 32694 4-KiB blocks for the FAT32 FAT,
+#   thus (32694 * 4096 / 4) - 2 == 33478654 FAT32 data clusters, thus
+#   33478654 * 32 KiB == 1071316928 bytes =~ 0.99774 TiB of free data.
+# * 0.99774 TiB is possible for both ext2 and FAT32.
+# * Using exFAT instead of FAT32 doesn't help, the ext2 block group limit
+#   above still applies.
 #
 
 BLKDEV="${1:-bothsh.img}"
