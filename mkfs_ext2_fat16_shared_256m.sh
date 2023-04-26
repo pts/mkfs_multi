@@ -5,15 +5,17 @@
 #
 # Motivation: https://askubuntu.com/a/1463980
 #
-# Filesystem size and statistics:
+# Filesystem type, size and statistics:
 #
+# * The first filesystem is ext2 (could easily be ext3, ext4 or even minix), the second filesystem is FAT16 (could easily be FAT32 or exFAT).
 # * FAT16 data cluster size == ext2 block size == 4 KiB
+# * FAT16 sector size == 512 bytes, for compatibility with old FAT16 drivers
 # * partition (disk image) size == filesystem size == 256 MiB == 65536 blocks * 4 KiB per block
 # * 65536 ext2 blocks in 2 ext2 block groups (32678 blocks each)
 #   maximum file size == 65296 * 4 KiB == 267452416 bytes
 #   65296 blocks of data in the file
 #   64 indirect blocks, each pointing to 1024 file blocks (each 1 block number == 4 bytes)
-#   1 doubly-indirect block, pointing to the 64 indirect block (each 1 block number == 4 bytes)
+#   1 doubly-indirect block, pointing to the 64 indirect blocks (each 1 block number == 4 bytes)
 #   total number of data blocks == 65296 + 64 + 1 == 65361
 # * 65536 4-KiB blocks in FAT16: 3 reserved blocks + 32 FAT blocks + 1 root directory block + 139 data clusters marked as bad + 65361 good data clusters
 #   maximum file size == 65361 * 4 KiB == 267718656 bytes =~ 255.316 MiB
@@ -22,12 +24,12 @@
 #
 # * ext2 block group 0: (ext2 blocks 0..32767)
 #   * block 0:
-#     * first 512 bytes: FAT16 superblock (BPB, boot sector)
-#     * next 512 bytes: ignored by FAT16 and ext2
-#     * next 1024 bytes: ext2 primary superblock
-#     * next 1024 bytes: ignored by FAT16 and ext2
-#   * block 1: ext2 group descriptors, ignored by FAT16 (because it's reserved sector)
-#   * block 2: ext2 block bitmap (1 bit per block in this ext2 block group), ignored by FAT16 (because it's reserved sector)
+#     * first 512 bytes: FAT16 superblock (BPB, boot sector), ignored by ext2 (because ext2 ignores the first 1024 bytes of the filesystem)
+#     * next 512 bytes: ignored by FAT16 (because it's in a reserved sector) and ext2 (because ext2 ignores the first 1024 bytes of the filesystem)
+#     * next 1024 bytes: ext2 primary superblock (always at offset 1024), ignored by FAT16 (because it's in a reserved sector)
+#     * last 2048 bytes: ignored by FAT16 (because it's in a reserved sector) and ext2 (because the next ext2 block starts at offset 4096)
+#   * block 1: ext2 group descriptors, ignored by FAT16 (because it's in a reserved sector)
+#   * block 2: ext2 block bitmap (1 bit per block in this ext2 block group), ignored by FAT16 (because it's in a reserved sector)
 #   * block 3..34: marked as bad block in ext2, FAT16 FAT (65536 * 2 bytes: room for 65536 data clusters, 2 bytes per data cluster)
 #   * block 35: marked as bad block in ext2, FAT16 root directory (128 * 32 bytes: room for 128 entries, 32 bytes per entry)
 #   * block 36: ext2 inode bitmap, marked as bad block in FAT16, first FAT16 data cluster (data cluster 2) starts here
