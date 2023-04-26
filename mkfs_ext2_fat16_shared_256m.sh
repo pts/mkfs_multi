@@ -81,6 +81,50 @@
 #   * data block 105 at offset 430080: empty
 #     * empty: 4096 bytes: inode=0 size=4096 name_size=0 type=0=DT_UNKNOWN
 #
+# One way to populate the filesystem with files (needs software development):
+#
+# * Mount the ext2 filesystem as read-write. Do all modifications. Unmount
+#   the ext2 filesystem.
+# * Run the recreator tool, which does a recursive listing on the ext2
+#   filesystem (read-only), recreates and writes all the FAT16 metadata
+#   based on the listing, and it marks some ext2 blocks (corresponding to
+#   FAT16 subdirectory clusters) as a bad block. The recreator tool doesn't
+#   exist yet, but it can be written given enough motivation. it will work
+#   like this:
+#   * It reads and analyzes the ext2 superblock, the ext2 block groups and
+#     FAT16 superblock (BPB, boot sector), and fails if they don't
+#     correspond to each other.
+#   * It does a recursive listing on the ext2 filesystem without mounting
+#     it. (It understands the metadata.) As part of the recursive listing,
+#     it discovers the data block list of each regular file.
+#   * It marks most ext2 bad blocks as free, removing them from the list of
+#     bad blocks. The only remaining ext2 bad blocks are those which
+#     correspond to the FAT16 FAT and the FAT16 root directory.
+#   * It creates an empty FAT16 FAT with all clusters free. Based on the
+#     ext2 block bitmap, it marks all used ext2 blocks as a bad block in the
+#     FAT16 FAT. It overwrites the FAT16 FAT accordingly.
+#   * For each regular file discovered during the recursive ext2 listing, it
+#     builds a FAT16 FAT data cluster chain containing the ext2 file data
+#     blocks (not the ext2 indirect blocks) of that file. It updates or
+#     overwrites the FAT16 FAT accordingly.
+#   * Based on the directories and regular files discovered during the
+#     recursive ext2 listing, it builds the FAT16 long filenames (VFAT,
+#     UTF-16, UCS-2) and directory entries from scratch in memory, and it
+#     organizes them into FAT16 data clusters (at least one cluster per
+#     subdirectory, with a special cluster offset for the root directory).
+#     It writes the FAT16 data clusters and the root directory. For each
+#     subdirectory, it builds a FAT16 FAT data cluster chain. It updates or
+#     overwrites the FAT16 FAT accordingly. It marks each FAT16 data cluster
+#     (used by newly created FAT16 subdirectories) as an ext2 bad block. For
+#     that it may have to extend the ext2 inode storing the list of bad
+#     blocks with more ext2 file indirect blocks. For each new ext2 file
+#     indirect block, it marks the corresponding FAT16 cluser as a bad block
+#     in the FAT16 FAT.
+#   * Maybe some of the ext2 operations above can be done by using the
+#     *debugfs* tool, thus making the implementation of the recreator tool
+#     simpler. However, the recreator tool needs to fully understand the
+#     FAT16 filesystem (which is relatively easy).
+#
 # Maximum filesystem size with this technique:
 #
 # * Use FAT32 instead of FAT16.
