@@ -14,7 +14,8 @@
 # * 65536 ext2 blocks in 2 ext2 block groups (32678 blocks each)
 #   maximum file size == 65296 * 4 KiB == 267452416 bytes
 #   65296 blocks of data in the file
-#   64 indirect blocks, each pointing to 1024 file blocks (each 1 block number == 4 bytes)
+#   the inode itself points to 12 file data blocks
+#   64 indirect blocks, each pointing to 1024 file data blocks (each 1 block number == 4 bytes)
 #   1 doubly-indirect block, pointing to the 64 indirect blocks (each 1 block number == 4 bytes)
 #   total number of data blocks == 65296 + 64 + 1 == 65361
 # * 65536 4-KiB blocks in FAT16: 3 reserved blocks + 32 FAT blocks + 1 root directory block + 139 data clusters marked as bad + 65361 good data clusters
@@ -34,7 +35,9 @@
 #   * block 35: marked as bad block in ext2, FAT16 root directory (128 * 32 bytes: room for 128 entries, 32 bytes per entry)
 #   * block 36: ext2 inode bitmap, marked as bad block in FAT16, first FAT16 data cluster (data cluster 2) starts here
 #   * block 37..100: ext2 inode table (2048 * 128 bytes: room for 2048 inodes, 128 bytes per inode, 11 inodes in use, why so many?), marked as bad block in FAT16
-#   * block 101..106: ext2 used data blocks (root directory + lost+found directory, why so many (6) blocks?), marked as bad block in FAT16
+#   * block 101: ext2 data block containing directory entries for the root directory (/), marked as bad block in FAT16
+#   * block 102..105: ext2 data block containing directory entries for the /lost+found directory, marked as bad block in FAT16
+#   * block 106: ext2 data block containing indirect block used by inode <1> (bad blocks), marked as bad block in FAT16
 #   * block 107..32767: free data blocks in both ext2 and FAT16 (32661 blocks)
 # * ext2 block group 1: (ext2 blocks 32768..65535)
 #   * block 32768: ext2 backup superblock, marked as bad block in FAT16
@@ -56,6 +59,40 @@
 # * 0.99774 TiB is possible for both ext2 and FAT32.
 # * Using exFAT instead of FAT32 doesn't help, the ext2 block group limit
 #   above still applies.
+#
+# ext2 inodes (128 bytes each):
+#
+# * inode <0>: 0 is an invalid inode number, it's not even stored in the filesystem
+# * inode <1> == EXT2_BAD_INO at offset 151552: bad blocks: mode == 0, size == 135168 (total number of bytes in 33 bad blocks), 33 data blocks: (0..11):3..14, (12..32):15..35, 1 indirect block: 106 (contains the block numbers 15..35, 4 bytes each)
+# * inode <2> == EXT2_ROOT_INO at offset 151680: directory /: mode == 0x41ed, size == 4096, 1 data block: (0):101
+# * inode <3> == EXT2_ACL_IDX_INO == EXT4_USR_QUOTA_INO at offset 151808: mode == size == 0, unused, not defined in ext2.h
+# * inode <4> == EXT2_ACL_DATA_INO == EXT4_GRP_QUOTA_INO at offset 151936: mode == size == 0, unused, not defined in linux/fs/ext2/ext2.h
+# * inode <5> == EXT2_BOOT_LOADER_INO at offset 152064: mode == size == 0, unused, not defined in linux/fs/ext2/ext2.h
+# * inode <6> == EXT2_UNDEL_DIR_INO at offset 152192: mode == size == 0, unused
+# * inode <7> == EXT4_RESIZE_INO at offset 152320: mode == size == 0, unused, reserved group descriptors
+# * inode <8> == EXT4_JOURNAL_INO at offset 152448: mode == size == 0, unused
+# * inode <9>..<10> at offset 152576: mode == size == 0, unused, remaining reserved inode (there are 10 in total)
+# * inode <11> at offset 152832: directory /lost+found: mode == 0x41c0, size == 16384 (4096 could be enough, or no lost+found at all, but mke2fs leaves enough room free on purpose), 4 data blocks: (0..3):102-105
+# * inode <12>..<2048> at offset 152960: free inodes
+# * inode <2049>..<4096> at offset 134234112: free inodes
+#
+# ext2 directory entries (dentry):
+#
+# * for inode <2> (/):
+#   * data block 101 at offset 413696:
+#     * inode <2> (.) 12 bytes: inode=<2> size=12 name_size=1 type=2=DT_DIR name="."
+#     * inode <2> (..) 12 bytes: inode=<2> size=12 name_size=2 type=2=DT_DIR name=".."
+#     * inode <11> (lost+found): inode=<11> size=4072 name_size=10 type=2=DT_DIR name="lost+found"
+# * for inode <11> (/lost+found):
+#   * data block 102 at offset 417792
+#     * inode <11> (.) 12 bytes: inode=<11> size=12 name_size=1 type=2=DT_DIR name="."
+#     * inode <2> (..) 4084 bytes: inode=<2> size=4084 name_size=2 type=2=DT_DIR name=".."
+#   * data block 103 at offset 421888: empty
+#     * empty: 4096 bytes: inode=0 size=4096 name_size=0 type=0=DT_UNKNOWN
+#   * data block 104 at offset 425984: empty
+#     * empty: 4096 bytes: inode=0 size=4096 name_size=0 type=0=DT_UNKNOWN
+#   * data block 105 at offset 430080: empty
+#     * empty: 4096 bytes: inode=0 size=4096 name_size=0 type=0=DT_UNKNOWN
 #
 
 BLKDEV="${1:-bothsh.img}"
